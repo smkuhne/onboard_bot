@@ -1,3 +1,6 @@
 tokens.json
 events
 events/*
+*/__pycache__
+*/__pycache__/*
+*.pyc
