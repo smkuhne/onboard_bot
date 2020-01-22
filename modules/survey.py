@@ -1,0 +1,2 @@
+def survey():
+    print('survey')
