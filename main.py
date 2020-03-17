@@ -2,18 +2,12 @@ import discord
 import json
 import sqlite3
 
-from modules.event import events, create, edit, subscribe, unsubscribe, help
+from modules.master_scheduler import master_scheduler
+from modules.event import subscribe, unsubscribe, help
 from modules.survey import survey
 
+mscheduler = master_scheduler()
 client = discord.Client()
-commands = {
-    'events': events,
-    'create': create,
-    'edit': edit,
-    'subscribe': subscribe,
-    'unsubscribe': unsubscribe,
-    'help': help
-}
 conn = sqlite3.connect('database/events.db')
 c = conn.cursor()
 token_bot = ''
@@ -21,6 +15,16 @@ token_bot = ''
 with open('tokens.json') as token_file:
     data = json.load(token_file)
     token_bot = data['bot']
+
+commands = {
+    'events': mscheduler.events,
+    'create': mscheduler.create,
+    'edit': mscheduler.edit,
+    'remove': mscheduler.remove,
+    'subscribe': subscribe,
+    'unsubscribe': unsubscribe,
+    'help': help
+}
 
 @client.event
 async def on_ready():
