@@ -1,19 +1,26 @@
 import discord
 import json
+import sqlite3
 
-from modules.event import event
+from modules.event import events, create, edit, subscribe, unsubscribe, help
 from modules.survey import survey
 
 client = discord.Client()
+commands = {
+    'events': events,
+    'create': create,
+    'edit': edit,
+    'subscribe': subscribe,
+    'unsubscribe': unsubscribe,
+    'help': help
+}
+conn = sqlite3.connect('database/events.db')
+c = conn.cursor()
 token_bot = ''
-token_firebase = ''
-
-event_dict = {}
 
 with open('tokens.json') as token_file:
     data = json.load(token_file)
     token_bot = data['bot']
-    token_firebase = data['firebase']
 
 @client.event
 async def on_ready():
@@ -26,21 +33,12 @@ async def on_message(message):
         return
 
     # If event is to be created, then do so
-    if message.content.startswith('$event'):
-        event_dict[message.author.name + message.channel.name + message.guild.name] = event(message)
-        success = await event_dict[message.author.name + message.channel.name + message.guild.name].create(message)
+    if message.content.startswith('sudo'):
+        str_arr = message.content.split(' ')
 
-        if success == 0:
-            await event_dict[message.author.name + message.channel.name + message.guild.name].error(message)
-    
-    elif (message.author.name + message.channel.name + message.guild.name) in event_dict:
-        success = await event_dict[message.author.name + message.channel.name + message.guild.name].create(message)
-
-        if success == 0:
-            await event_dict[message.author.name + message.channel.name + message.guild.name].error(message)
-
-        elif success == 2:
-            del event_dict[message.author.name + message.channel.name + message.guild.name]
-        
+        if str_arr[1] in commands:
+            await commands[str_arr[1]](message, str_arr, c)
+        else:
+            await commands['help'](message, str_arr, c)
 
 client.run(token_bot)

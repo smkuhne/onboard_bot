@@ -1,109 +1,152 @@
 import re
 import os
 import json
+import sqlite3
+import sched, time
+from apscheduler.triggers.combining import AndTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime
 from pathlib import Path
 
-class event:
-    def __init__(self, client):
-        self.client = client
-        self.stage = 0
-        self.error_stage = 0
+async def events(message, csplit, c):
+    await message.channel.send('These are the available events')
 
-    # Creates an event including various stages of completion
-    async def create(self, message):
-        success = 0
+## Allows for the creation of a new recurring event
+async def create(message, csplit, c):
 
-        if self.stage == 0:
+    # If the command is used incorrectly, tell the user what they are doing wrong
+    if len(csplit) < 3:
+        await message.channel.send('Usage: sudo create <title> [options]\n\n' \
+        'Where options include:\n\n' \
+        '-b <before> to indicate how many hours before a user should be notified\n' \
+        '-d <description> to set a description\n' \
+        '-r <days> number of days it takes to repeat\n' \
+        '-s <date> indicating the day on which to start with format MM-DD-YYYY\n' \
+        '-t <time> indicating what hour the event is taking place (1-24)')
 
-            # Gets title, asks for description
-            self.title = re.sub('\$event\s*', '', message.content)
-            await self.send(message)
-            self.stage += 1
-            success = 1
+        return
+    
+    # Don't crash the bot if something goes wrong
+    try:
 
-        elif self.stage == 1:
+        # Define what the event is and then add properties based on selected options
+        event = {}
+        event['title'] = [csplit[2]]
+        event['description'] = []
+        event['date'] = datetime.now()
+        event['date'] = event['date'].replace(minute=0, second=0, microsecond=0)
+        event['before'] = 24
+        event['repeat'] = 7
+        mode = '-c'
 
-            # Gets description, asks for date
-            self.description = re.sub('\$event\s*', '', message.content)
-            await self.send(message)
-            self.stage += 1
-            success = 1
+        for option in csplit[3:]:
+            if option == '-b':
+                mode = '-b'
 
-        elif self.stage == 2:
+            elif option == '-d':
+                mode = '-d'
 
-            # Gets date and time, asks for location
-            self.date = re.sub('\$event\s*', '', message.content)
+            elif option == '-r':
+                mode = '-r'
 
-            try:
-                self.date = datetime.strptime(self.date, '%b %d %Y %I:%M%p')
-            except ValueError as e:
-                self.success = False
-                return self.success
-            await self.send(message)
-            self.stage += 1
-            success = 1
+            elif option == '-s':
+                mode = '-s'
 
-        elif self.stage == 3:
+            elif option == '-t':
+                mode = '-t'
 
-            # Gets location, makes sure user wants to create event
-            self.location = re.sub('\$event\s*', '', message.content)
-            self.message = '**{}**\n\n{}\n\nDate: {}\n\nLocation: {}'.format(self.title, self.description, self.date, self.location)
-            await self.send(message)
-            self.stage += 1
-            success = 1
+            else:
+                if mode == '-b':
+                    event['before'] = int(option)
 
-        elif self.stage == 4:
+                elif mode == '-d':
+                    event['description'].append(option)
 
-            # Checks if user wants to save event
-            if re.sub('\$event\s*', '', message.content).lower() == 'y':
-                await self.save(message)
-                await message.channel.send('Successfully created event!')
-                success = 2
+                elif mode == '-r':
+                    event['repeat'] = int(option)
+                
+                elif mode == '-s':
+                    date = datetime.strptime(option, '%m-%d-%Y')
 
-        elif self.stage == 99:
-            if re.sub('\$event\s*', '', message.content).lower() == 'y':
-                self.stage = self.error_stage
-                await self.send(message)
-                self.stage += 1
-                success = 1
+                    event['date'] = event['date'].replace(year=date.year, month=date.month, day=date.day)
 
-        # Return validity of input
-        return success
+                elif mode == '-t':
+                    event['date'] = event['date'].replace(hour=int(option))
 
-    async def send(self, message):
-        if self.stage == 0:
-            await message.channel.send('Enter a description for the event:')
+                elif mode == '-c':
+                    event['title'].append(option)
 
-        elif self.stage == 1:
-            await message.channel.send('Enter a date and time for the event, (Example Jan 1 2020 11:43AM):')
+        # Reformat the data so that it is correct
+        event['date'] = event['date'].strftime('%Y-%m-%dT%H:%M')
+        event['description'] = ' '.join(event['description'])
+        event['title'] = ' '.join(event['title'])
+        event['message'] = '{0}\n\n{1}'.format(event['title'], event['description'])
 
-        elif self.stage == 2:
-            await message.channel.send('Enter a location for the event:')
+        # Add the data to a SQL table
+        c.execute('''CREATE TABLE IF NOT EXISTS G_{0}(title TEXT, description TEXT, date TEXT, before INT, repeat INT);'''.format(message.guild.id))
+        c.execute('''INSERT INTO G_{0} VALUES ('{1}', '{2}', '{3}', '{4}', '{5}');'''.format(message.guild.id, event['title'], event['description'], event['date'], event['before'], event['repeat']))
+        c.execute('''CREATE TABLE IF NOT EXISTS `G_{0}_{1}`(member_id INT);'''.format(message.guild.id, event['title']))
 
-        elif self.stage == 3:
-            await message.channel.send('{}\n\nIs this correct? (y/n)'.format(self.message))
+        # Confirm successfull creation of the event
+        await message.channel.send('Your event {0}, has been created'.format(event['title']))
 
-    async def error(self, message):
-        await message.channel.send('There was an error processing your entry, continue? (y/n)')
-        self.error_stage = self.stage - 1
+        # Tell create the scheduler and tell the scheduler to send a message a certain time
+        scheduler = AsyncIOScheduler()
+        scheduler.start()
+        scheduler.add_job(notifier, 'date', run_date=datetime.strptime(event['date'],'%Y-%m-%dT%H:%M'), id='G_{0}_{1}'.format(message.guild.id, event['title']), kwargs={'message': message, 'text': event['message']})
+    except Exception as inst:
+        print(inst)
+        await message.channel.send('There was an error creating your event, please retry.')
 
-        self.stage = 99
+async def edit(message, csplit, c):
+    await message.channel.send('Edit event')
 
-    async def save(self, message):
-        d = Path().resolve()
+async def subscribe(message, csplit, c):
+    await message.channel.send('Subscribe to event')
 
-        if not os.path.exists('{}/events/{}'.format(d, message.guild.name)):
-            os.makedirs('{}/events/{}'.format(d, message.guild.name))
+async def unsubscribe(message, csplit, c):
+    await message.channel.send('Unsubscribe from event')
 
-        json_file = open('{}/events/{}/test.json'.format(d, message.guild.name), 'w')
+async def setup(message, csplit, c):
+    await message.channel.send('Changes successfully updated!')
 
-        json_event = {
-            'title': self.title,
-            'description': self.description,
-            'date': self.date.strftime('%m/%d/%Y, %H:%M:%S'),
-            'location': self.location
-        }
+async def help(message, csplit, c):
+    await message.channel.send(' === These are the command onboard bot currently supports === \n' \
+        'Look at the list of currently created events on the server.\n' \
+        'Usage: sudo events\n\n\n' \
+        'Create a new event for the server.\n' \
+        'Usage: sudo create <title> [options]\n\n' \
+        'Where options include:\n\n' \
+        '-b <before> to indicate how many hours before a user should be notified\n' \
+        '-d <description> to set a description\n' \
+        '-r <days> number of days it takes to repeat\n' \
+        '-s <date> indicating the day on which to start with format MM-DD-YYYY\n' \
+        '-t <time> indicating what hour the event is taking place (1-24)\n\n\n' \
+        'Edit an event that already exists on the server\n' \
+        'Usage: sudo edit <title> [options]\n\n' \
+        '-b <before> to indicate how many hours before a user should be notified\n' \
+        '-d <description> to set a description\n' \
+        '-r <days> number of days it takes to repeat\n' \
+        '-s <date> indicating the day on which to start with format MM-DD-YYYY\n' \
+        '-t <time> indicating what hour the event is taking place (1-24)\n\n\n' \
+        'Subscribe to an event that exists on this server.\n' \
+        'Usage: sudo subscribe <title>\n\n\n' \
+        'Unsubsribe from an event on this server.\n' \
+        'Usage: sudo unsubscribe <title>\n\n\n' \
+        'Setup the server with a role and channel.\n' \
+        'Usage: sudo setup [options]\n\n' \
+        'Where options include:\n\n' \
+        '-r <role> role which may create and edit events\n' \
+        '-c <channel> channel all bot commands must be issued \n' \
+        'Show this message.\n' \
+        'Usage: sudo help')
 
-        json.dump(json_event, json_file)
+async def notifier(message, text):
+    try:
+        await message.channel.send(text)
+        print("Ran a thing!")
+    except:
+        return
 
