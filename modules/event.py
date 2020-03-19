@@ -3,16 +3,16 @@ import os
 import json
 from pathlib import Path
 
-async def subscribe(message, csplit, c):
+async def subscribe(message, csplit):
     await message.channel.send('Subscribe to event')
 
-async def unsubscribe(message, csplit, c):
+async def unsubscribe(message, csplit):
     await message.channel.send('Unsubscribe from event')
 
-async def setup(message, csplit, c):
+async def setup(message, csplit):
     await message.channel.send('Changes successfully updated!')
 
-async def help(message, csplit, c):
+async def help(message, csplit):
     await message.channel.send(' === These are the command onboard bot currently supports === \n' \
         'Look at the list of currently created events on the server.\n' \
         'Usage: sudo events\n\n\n' \

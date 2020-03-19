@@ -6,23 +6,30 @@ from modules.master_scheduler import master_scheduler
 from modules.event import subscribe, unsubscribe, help
 from modules.survey import survey
 
-mscheduler = master_scheduler()
 client = discord.Client()
 conn = sqlite3.connect('database/events.db')
-c = conn.cursor()
+cursor = conn.cursor()
+cursor.execute('''CREATE TABLE IF NOT EXISTS Guilds(id INT NOT NULL PRIMARY KEY, gid TEXT, daily INT, weekly INT, yearly INT)''')
+mscheduler = master_scheduler(client, cursor)
 token_bot = ''
 
 with open('tokens.json') as token_file:
     data = json.load(token_file)
     token_bot = data['bot']
 
-commands = {
+scheduler_commands = {
     'events': mscheduler.events,
     'create': mscheduler.create,
     'edit': mscheduler.edit,
     'remove': mscheduler.remove,
+}
+
+subscription_commands = {
     'subscribe': subscribe,
-    'unsubscribe': unsubscribe,
+    'unsubscribe': unsubscribe
+}
+
+other_commands = {
     'help': help
 }
 
@@ -39,10 +46,16 @@ async def on_message(message):
     # If event is to be created, then do so
     if message.content.startswith('sudo'):
         str_arr = message.content.split(' ')
-
-        if str_arr[1] in commands:
-            await commands[str_arr[1]](message, str_arr, c)
+ 
+        if str_arr[1] in scheduler_commands:
+            await scheduler_commands[str_arr[1]](message, str_arr[2:])
+        elif str_arr[1] in subscription_commands:
+            await subscription_commands[str_arr[1]](message, str_arr[2:])
+        elif str_arr[1] in other_commands:
+            await other_commands[str_arr[1]](message, str_arr[2:])
         else:
-            await commands['help'](message, str_arr, c)
+            await other_commands['help'](message, str_arr)
+
+    conn.commit()
 
 client.run(token_bot)

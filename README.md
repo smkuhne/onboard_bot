@@ -4,7 +4,7 @@ The onboard bot script allows users to create events and later on, get feedback 
 
 ## Setup
 
-You will need to create a new discord application and within that application create a new bot. Copy the bot's token and create a tokens.json file. Put the token within the json file and label it as "bot". You will also need a firebase database, label it as "firebase".
+You will need to create a new discord application and within that application create a new bot. Copy the bot's token and create a tokens.json file. Put the token within the json file and label it as "bot".
 
 ## Usage Terms and Conditions
 
