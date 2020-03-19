@@ -3,12 +3,6 @@ import os
 import json
 from pathlib import Path
 
-async def subscribe(message, csplit):
-    await message.channel.send('Subscribe to event')
-
-async def unsubscribe(message, csplit):
-    await message.channel.send('Unsubscribe from event')
-
 async def setup(message, csplit):
     await message.channel.send('Changes successfully updated!')
 
@@ -19,18 +13,20 @@ async def help(message, csplit):
         'Create a new event for the server.\n' \
         'Usage: sudo create <title> [options]\n\n' \
         'Where options include:\n\n' \
-        '-b <before> to indicate how many hours before a user should be notified\n' \
         '-d <description> to set a description\n' \
-        '-r <days> number of days it takes to repeat\n' \
-        '-s <date> indicating the day on which to start with format MM-DD-YYYY\n' \
-        '-t <time> indicating what hour the event is taking place (1-24)\n\n\n' \
+        '-t <date/time> indicate what day and time to start at using the following format MM-DD-YYYYThh:mm\n' \
+        '-a <location> indicate where the event will take place\n' \
+        '-l <link> indicate a link to which members can refer for information about the event\n' \
+        '-r <yearly, weekly, daily> specify how often you want the event to repeat\n' \
+        '-c <channel> ping a channel to indicate which channel the announcement should be provided in' \
         'Edit an event that already exists on the server\n' \
         'Usage: sudo edit <title> [options]\n\n' \
-        '-b <before> to indicate how many hours before a user should be notified\n' \
         '-d <description> to set a description\n' \
-        '-r <days> number of days it takes to repeat\n' \
-        '-s <date> indicating the day on which to start with format MM-DD-YYYY\n' \
-        '-t <time> indicating what hour the event is taking place (1-24)\n\n\n' \
+        '-t <date/time> indicate what day and time to start at using the following format MM-DD-YYYYThh:mm\n' \
+        '-a <location> indicate where the event will take place\n' \
+        '-l <link> indicate a link to which members can refer for information about the event\n' \
+        '-r <yearly, weekly, daily> specify how often you want the event to repeat\n' \
+        '-c <channel> ping a channel to indicate which channel the announcement should be provided in' \
         'Remove an event from the server\n' \
         'Usage: sudo remove <title>\n\n\n' \
         'Subscribe to an event that exists on this server.\n' \

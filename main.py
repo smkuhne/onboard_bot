@@ -2,15 +2,15 @@ import discord
 import json
 import sqlite3
 
-from modules.master_scheduler import master_scheduler
-from modules.event import subscribe, unsubscribe, help
+from modules.scheduling import scheduling
+from modules.administration import setup, help
 from modules.survey import survey
 
 client = discord.Client()
 conn = sqlite3.connect('database/events.db')
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS Guilds(id INT NOT NULL PRIMARY KEY, gid TEXT, daily INT, weekly INT, yearly INT)''')
-mscheduler = master_scheduler(client, cursor)
+mscheduler = scheduling(client, cursor)
 token_bot = ''
 
 with open('tokens.json') as token_file:
@@ -25,8 +25,8 @@ scheduler_commands = {
 }
 
 subscription_commands = {
-    'subscribe': subscribe,
-    'unsubscribe': unsubscribe
+    'subscribe': mscheduler.subscribe,
+    'unsubscribe': mscheduler.unsubscribe
 }
 
 other_commands = {
@@ -48,7 +48,8 @@ async def on_message(message):
         str_arr = message.content.split(' ')
  
         if str_arr[1] in scheduler_commands:
-            await scheduler_commands[str_arr[1]](message, str_arr[2:])
+            if message.author.guild_permissions.administrator:
+                await scheduler_commands[str_arr[1]](message, str_arr[2:])
         elif str_arr[1] in subscription_commands:
             await subscription_commands[str_arr[1]](message, str_arr[2:])
         elif str_arr[1] in other_commands:
