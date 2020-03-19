@@ -1,10 +1,35 @@
 # Onboard Bot
 
-The onboard bot script allows users to create events and later on, get feedback about those events. It is meant to be used as an organizational tool.
+The onboard bot script allows users to create events that will send notification in a recurring nature. Server users can subscribe to events which will give them the corresponding role, which will be pinged before the event occurs.
 
-## Setup
+## Hosting Setup
 
-You will need to create a new discord application and within that application create a new bot. Copy the bot's token and create a tokens.json file. Put the token within the json file and label it as "bot".
+Clone the project and then open a terminal in the project directory.
+
+The following command will set up the database:
+``` shell
+mkdir database && cd database && events.db && cd ../
+```
+
+Then make a file called variables.py in the main project directory with that is formatted as follows, enter your own bot token and timezone:
+``` python
+token = "bot_token"
+zone = "timezone"
+```
+
+## Bot Usage
+
+All commands have the following format
+
+``` shell
+sudo <command> <input> [options]
+```
+
+In order to get information on the commands, use:
+
+``` shell
+sudo help
+```
 
 ## Usage Terms and Conditions
 

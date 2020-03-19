@@ -1,4 +1,4 @@
-tokens.json
+variables.py
 events
 database/*
 */__pycache__

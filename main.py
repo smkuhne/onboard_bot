@@ -1,36 +1,32 @@
 import discord
-import json
 import sqlite3
 
 from modules.scheduling import scheduling
-from modules.administration import setup, help
-from modules.survey import survey
+from modules.administration import administration
+from variables import token, zone
 
 client = discord.Client()
 conn = sqlite3.connect('database/events.db')
 cursor = conn.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS Guilds(id INT NOT NULL PRIMARY KEY, gid TEXT, daily INT, weekly INT, yearly INT)''')
-mscheduler = scheduling(client, cursor)
-token_bot = ''
-
-with open('tokens.json') as token_file:
-    data = json.load(token_file)
-    token_bot = data['bot']
+cursor.execute('''CREATE TABLE IF NOT EXISTS Guilds(id INT NOT NULL PRIMARY KEY, gid TEXT, timezone TEXT)''')
+scheduler = scheduling(client, cursor, zone)
+administrator = administration(client, cursor)
 
 scheduler_commands = {
-    'events': mscheduler.events,
-    'create': mscheduler.create,
-    'edit': mscheduler.edit,
-    'remove': mscheduler.remove,
+    'create': scheduler.create,
+    'edit': scheduler.edit,
+    'remove': scheduler.remove,
+    'timezone': administrator.setup
 }
 
 subscription_commands = {
-    'subscribe': mscheduler.subscribe,
-    'unsubscribe': mscheduler.unsubscribe
+    'events': scheduler.events,
+    'subscribe': scheduler.subscribe,
+    'unsubscribe': scheduler.unsubscribe
 }
 
 other_commands = {
-    'help': help
+    'help': administrator.help
 }
 
 @client.event
@@ -59,4 +55,4 @@ async def on_message(message):
 
     conn.commit()
 
-client.run(token_bot)
+client.run(token)
